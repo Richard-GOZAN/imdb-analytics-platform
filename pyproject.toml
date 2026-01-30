@@ -1,0 +1,31 @@
+[project]
+name = "imdb-analytics-platform"
+version = "0.1.0"
+description = "Comprehensive IMDB data platform with automated ingestion, dbt transformations, and LLM-powered chat interface"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # Data processing
+    "pandas>=2.2.0",
+    "pyarrow>=16.0.0",
+    
+    # Google Cloud
+    "google-cloud-bigquery>=3.25.0",
+    "google-cloud-storage>=2.18.0",
+    
+    # HTTP requests
+    "requests>=2.32.0",
+    
+    # CLI
+    "click>=8.1.7",
+    "python-dotenv>=1.0.1",
+    
+    # LLM & Chat
+    "openai>=1.50.0",
+    "streamlit>=1.39.0",
+    
+    # dbt
+    "dbt-core>=1.9.0",
+    "dbt-bigquery>=1.9.0",
+]
+
