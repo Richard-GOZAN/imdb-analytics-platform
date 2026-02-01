@@ -1,0 +1,56 @@
+# Dockerfile for IMDB Ingestion Pipeline
+# 
+# This container runs the data ingestion and dbt transformations.
+# It's designed to be run as a scheduled job (e.g., via Cloud Scheduler).
+
+FROM python:3.11-slim
+
+# Metadata
+LABEL maintainer="your.email@example.com"
+LABEL description="IMDB Analytics - Data Ingestion Pipeline"
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies and uv
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/0.5.11/install.sh | sh \
+    && ln -s /root/.local/bin/uv /usr/local/bin/uv
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY pyproject.toml uv.lock ./
+COPY ingestion/ ./ingestion/
+COPY dbt/ ./dbt/
+COPY scripts/ ./scripts/
+COPY .env.template ./.env.template
+
+# Install Python dependencies
+RUN uv sync --frozen
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Make scripts executable
+RUN chmod +x /app/scripts/*.sh
+
+# Set entrypoint
+ENTRYPOINT ["/app/scripts/run_ingestion.sh"]
+
+# Default command (can be overridden)
+CMD []
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD test -f /app/logs/ingestion_*.log || exit 1
+
+# Volume for logs (optional)
+VOLUME ["/app/logs"]

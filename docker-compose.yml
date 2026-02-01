@@ -1,0 +1,84 @@
+services:
+  # ============================================================================
+  # Ingestion Service (runs on schedule)
+  # ============================================================================
+  ingestion:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ingestion
+    image: imdb-analytics/ingestion:latest
+    container_name: imdb-ingestion
+    env_file:
+      - .env
+    volumes:
+      # Mount credentials
+      - ./credentials.json:/app/credentials.json:ro
+      # Mount logs for persistence
+      - ./logs:/app/logs
+      # Optional: mount data directory
+      - ./data:/app/data
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+    # Don't run automatically - use for manual execution
+    profiles:
+      - manual
+    restart: "no"
+    networks:
+      - imdb-network
+
+  # ============================================================================
+  # Chat Application (Streamlit)
+  # ============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.app
+    image: imdb-analytics/app:latest
+    container_name: imdb-app
+    env_file:
+      - .env
+    volumes:
+      # Mount credentials
+      - ./credentials.json:/app/credentials.json:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - imdb-network
+
+networks:
+  imdb-network:
+    driver: bridge
+
+# ============================================================================
+# Usage Examples
+# ============================================================================
+#
+# Build images:
+#   docker-compose build
+#
+# Run app only:
+#   docker-compose up app
+#
+# Run ingestion manually:
+#   docker-compose run --rm ingestion
+#
+# Run ingestion with force download:
+#   docker-compose run --rm ingestion --force-download
+#
+# Stop all:
+#   docker-compose down
+#
+# View logs:
+#   docker-compose logs -f app
+#
+# Rebuild and restart:
+#   docker-compose up --build app
