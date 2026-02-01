@@ -2,7 +2,7 @@
 Configuration module for IMDB data ingestion pipeline.
 
 This module provides a centralized configuration class that loads settings
-from environment variables. 
+from environment variables.
 """
 
 import os
@@ -50,26 +50,22 @@ class Config:
     # IMDB Data Configuration
     # =========================================================================
 
-    base_url: str = os.getenv(
-        "IMDB_BASE_URL", "https://datasets.imdbws.com/"
-    )
+    base_url: str = os.getenv("IMDB_BASE_URL", "https://datasets.imdbws.com/")
 
     # Local data directories
     raw_data_folder: Path = Path(os.getenv("RAW_DATA_FOLDER", "data/raw"))
-    parquet_data_folder: Path = Path(
-        os.getenv("PARQUET_DATA_FOLDER", "data/parquet")
-    )
+    parquet_data_folder: Path = Path(os.getenv("PARQUET_DATA_FOLDER", "data/parquet"))
 
     # List of IMDB tables to ingest
     # These correspond to the files available at https://datasets.imdbws.com/
     tables: List[str] = [
-        "name.basics",      # Person information (actors, directors)
-        "title.akas",       # Alternative titles (different languages/regions)
-        "title.basics",     # Core movie/title information
-        "title.crew",       # Director and writer assignments
-        "title.episode",    # TV episode information
-        "title.principals", # Principal cast/crew for each title
-        "title.ratings",    # User ratings and vote counts
+        "name.basics",  # Person information (actors, directors)
+        "title.akas",  # Alternative titles (different languages/regions)
+        "title.basics",  # Core movie/title information
+        "title.crew",  # Director and writer assignments
+        "title.episode",  # TV episode information
+        "title.principals",  # Principal cast/crew for each title
+        "title.ratings",  # User ratings and vote counts
     ]
 
     # =========================================================================
@@ -99,7 +95,8 @@ class Config:
         }
 
         missing_vars = [
-            var for var, value in required_vars.items()
+            var
+            for var, value in required_vars.items()
             if not value or value.startswith("your-")
         ]
 
@@ -205,4 +202,5 @@ except (ValueError, FileNotFoundError) as e:
     # Don't fail hard during import, just warn
     # This allows the module to be imported for documentation/testing
     import warnings
+
     warnings.warn(f"Configuration validation failed: {e}", UserWarning)

@@ -11,7 +11,6 @@ This script orchestrates the complete data ingestion workflow:
 
 import logging
 import sys
-from pathlib import Path
 from typing import List, Optional
 
 import click
@@ -129,7 +128,7 @@ def run_pipeline(
     tables = tables or Config.tables
 
     logger.info(f"{'=' * 70}")
-    logger.info(f"IMDB Data Ingestion Pipeline")
+    logger.info("IMDB Data Ingestion Pipeline")
     logger.info(f"{'=' * 70}")
     logger.info(f"Project: {Config.project_id}")
     logger.info(f"Bucket: {Config.bucket_name}")
@@ -153,12 +152,12 @@ def run_pipeline(
 
         # Stop on first failure if fail_fast enabled
         if not success and fail_fast:
-            logger.error(f"Stopping due to failure (--fail-fast enabled)")
+            logger.error("Stopping due to failure (--fail-fast enabled)")
             break
 
     # Summary
     logger.info(f"\n{'=' * 70}")
-    logger.info(f"Pipeline Summary")
+    logger.info("Pipeline Summary")
     logger.info(f"{'=' * 70}")
 
     successful = [t for t, success in results.items() if success]
@@ -274,7 +273,7 @@ def main(
     # Dry run: just show configuration and exit
     if dry_run:
         logger.info("DRY RUN MODE - No changes will be made")
-        logger.info(f"\nConfiguration:")
+        logger.info("\nConfiguration:")
         logger.info(f"  Project: {Config.project_id}")
         logger.info(f"  Bucket: {Config.bucket_name}")
         logger.info(f"  Dataset: {Config.bronze_dataset}")

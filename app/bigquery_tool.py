@@ -8,7 +8,6 @@ and retrieve schema information for the LLM to understand the data structure.
 import os
 from typing import Dict, List, Any
 
-import pandas as pd
 from google.cloud import bigquery
 from google.oauth2 import service_account
 from dotenv import load_dotenv
@@ -25,7 +24,7 @@ CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "./credentials.js
 def get_bigquery_client() -> bigquery.Client:
     """
     Get authenticated BigQuery client.
-    
+
     Returns:
         Authenticated BigQuery client
     """
@@ -38,10 +37,10 @@ def get_bigquery_client() -> bigquery.Client:
 def execute_sql(sql_query: str) -> Dict[str, Any]:
     """
     Execute a SQL query on BigQuery and return results.
-    
+
     Args:
         sql_query: SQL query to execute
-    
+
     Returns:
         Dictionary with:
         - success: bool
@@ -51,14 +50,14 @@ def execute_sql(sql_query: str) -> Dict[str, Any]:
     """
     try:
         client = get_bigquery_client()
-        
+
         # Execute query
         query_job = client.query(sql_query)
         results = query_job.result()
-        
+
         # Convert to DataFrame
         df = results.to_dataframe()
-        
+
         return {
             "success": True,
             "data": df,
@@ -66,7 +65,7 @@ def execute_sql(sql_query: str) -> Dict[str, Any]:
             "rows_returned": len(df),
             "bytes_processed": query_job.total_bytes_processed,
         }
-        
+
     except Exception as e:
         return {
             "success": False,
@@ -80,21 +79,21 @@ def execute_sql(sql_query: str) -> Dict[str, Any]:
 def get_schema() -> Dict[str, List[Dict[str, str]]]:
     """
     Get schema information for all tables in the silver dataset.
-    
+
     Returns:
         Dictionary mapping table names to their column schemas
     """
     client = get_bigquery_client()
-    
+
     # Tables to document
     tables = ["movies", "dim_actors", "dim_directors"]
-    
+
     schema_info = {}
-    
+
     for table_name in tables:
         table_ref = f"{PROJECT_ID}.{DATASET_ID}.{table_name}"
         table = client.get_table(table_ref)
-        
+
         columns = []
         for field in table.schema:
             column_info = {
@@ -103,53 +102,57 @@ def get_schema() -> Dict[str, List[Dict[str, str]]]:
                 "mode": field.mode,
                 "description": field.description or "",
             }
-            
+
             # Handle nested fields (STRUCT/ARRAY)
             if field.field_type == "RECORD" and field.fields:
                 nested_fields = []
                 for nested_field in field.fields:
-                    nested_fields.append({
-                        "name": nested_field.name,
-                        "type": nested_field.field_type,
-                    })
+                    nested_fields.append(
+                        {
+                            "name": nested_field.name,
+                            "type": nested_field.field_type,
+                        }
+                    )
                 column_info["fields"] = nested_fields
-            
+
             columns.append(column_info)
-        
+
         schema_info[table_name] = columns
-    
+
     return schema_info
 
 
 def format_schema_for_llm() -> str:
     """
     Format schema information in a way that's easy for LLM to understand.
-    
+
     Returns:
         Formatted string describing the database schema
     """
     schema = get_schema()
-    
+
     prompt = f"""
         You have access to a BigQuery database with IMDB movie data in the `{PROJECT_ID}.{DATASET_ID}` dataset.
 
         Here are the available tables and their schemas:
 
         """
-    
+
     for table_name, columns in schema.items():
         prompt += f"\n## Table: {DATASET_ID}.{table_name}\n\n"
-        
+
         for col in columns:
             prompt += f"- **{col['name']}** ({col['type']}): "
-            
+
             # Add nested fields info
             if "fields" in col:
-                nested = ", ".join([f"{f['name']} ({f['type']})" for f in col["fields"]])
+                nested = ", ".join(
+                    [f"{f['name']} ({f['type']})" for f in col["fields"]]
+                )
                 prompt += f"STRUCT with fields: {nested}"
-            
+
             prompt += "\n"
-    
+
     prompt += """
 
         **Important Notes:**
@@ -185,7 +188,7 @@ def format_schema_for_llm() -> str:
         ORDER BY average_rating DESC
         ```
         """
-    
+
     return prompt
 
 
@@ -195,7 +198,7 @@ if __name__ == "__main__":
     print("=== Schema Information ===")
     schema_prompt = format_schema_for_llm()
     print(schema_prompt)
-    
+
     # Test query execution
     print("\n=== Test Query ===")
     test_query = """
@@ -204,7 +207,7 @@ if __name__ == "__main__":
     ORDER BY average_rating DESC
     LIMIT 5
     """
-    
+
     result = execute_sql(test_query)
     if result["success"]:
         print(f"Query successful! {result['rows_returned']} rows returned")

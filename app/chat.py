@@ -14,7 +14,6 @@ Run with:
 """
 
 import streamlit as st
-import pandas as pd
 from dotenv import load_dotenv
 
 from app.agent import run_agent
@@ -32,7 +31,8 @@ st.set_page_config(
 )
 
 # Custom CSS
-st.markdown("""
+st.markdown(
+    """
 <style>
 .stMetric {
     background-color: #0e1117;
@@ -40,7 +40,9 @@ st.markdown("""
     border-radius: 5px;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -55,43 +57,43 @@ if "selected_model" not in st.session_state:
 # Sidebar Configuration
 with st.sidebar:
     st.header("⚙️ Configuration")
-    
+
     # Model Selection (simplified)
     model = st.selectbox(
         "🤖 Model",
         ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
         index=1,  # Default to gpt-4o-mini (cheaper)
-        help="gpt-4o: Best quality\ngpt-4o-mini: Faster & cheaper\ngpt-4-turbo: Previous generation"
+        help="gpt-4o: Best quality\ngpt-4o-mini: Faster & cheaper\ngpt-4-turbo: Previous generation",
     )
     st.session_state.selected_model = model
-    
+
     st.divider()
-    
+
     # Statistics (3 core metrics)
     st.header("📊 Statistics")
-    
+
     stats_summary = st.session_state.stats.get_summary()
-    
+
     col1, col2, col3 = st.columns(3)
     col1.metric("Questions", stats_summary["total_questions"])
     col2.metric("Tokens", st.session_state.stats.get_formatted_tokens())
     col3.metric("Session", f"{stats_summary['session_duration_minutes']:.0f}m")
-    
+
     # Detailed stats expander
     with st.expander("📈 Detailed Stats"):
         st.write(f"**Input tokens:** {stats_summary['input_tokens']:,}")
         st.write(f"**Output tokens:** {stats_summary['output_tokens']:,}")
-        
-        if stats_summary['model_usage']:
+
+        if stats_summary["model_usage"]:
             st.write("**Model usage:**")
-            for model_name, count in stats_summary['model_usage'].items():
+            for model_name, count in stats_summary["model_usage"].items():
                 st.write(f"  - {model_name}: {count} queries")
-    
+
     st.divider()
-    
+
     # Example Questions
     st.header("💡 Example Questions")
-    
+
     examples = [
         "Top 10 highest-rated movies",
         "Christopher Nolan's filmography",
@@ -104,15 +106,17 @@ with st.sidebar:
         "Movies with 9+ rating from 2010s",
         "Directors with most movies",
     ]
-    
+
     for example in examples:
         if st.button(example, key=f"example_{example}", use_container_width=True):
             # Add user message
-            st.session_state.messages.append({
-                "role": "user",
-                "content": example,
-            })
-            
+            st.session_state.messages.append(
+                {
+                    "role": "user",
+                    "content": example,
+                }
+            )
+
             # Process immediately
             with st.spinner("Thinking..."):
                 result = run_agent(
@@ -123,7 +127,7 @@ with st.sidebar:
                     ],
                     model=st.session_state.selected_model,
                 )
-                
+
                 # Track statistics
                 if "usage" in result and result["usage"]:
                     st.session_state.stats.add_query(
@@ -133,28 +137,30 @@ with st.sidebar:
                         question=example,
                         sql_executed=result["sql_query"] is not None,
                     )
-                
+
                 # Add assistant response
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": result["answer"],
-                    "sql": result["sql_query"],
-                    "data": result["data"],
-                })
-            
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": result["answer"],
+                        "sql": result["sql_query"],
+                        "data": result["data"],
+                    }
+                )
+
             st.rerun()
-    
+
     st.divider()
-    
+
     # Clear conversation button
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
         st.session_state.stats = ConversationStats()
         st.rerun()
-    
+
     # Info Footer
     st.divider()
-    
+
     col1, col2 = st.columns(2)
     with col1:
         st.caption("🤖 Powered by OpenAI")
@@ -174,18 +180,22 @@ st.markdown(
 for idx, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        
+
         # Display SQL if available
         if "sql" in message and message["sql"]:
             with st.expander("📝 View SQL Query"):
                 st.code(message["sql"], language="sql")
-        
+
         # Display data table if available
-        if "data" in message and message["data"] is not None and not message["data"].empty:
+        if (
+            "data" in message
+            and message["data"] is not None
+            and not message["data"].empty
+        ):
             # Show result count
             st.caption(f"📊 {len(message['data'])} results")
             st.dataframe(message["data"], use_container_width=True)
-            
+
             # Export button
             csv = message["data"].to_csv(index=False)
             st.download_button(
@@ -195,20 +205,22 @@ for idx, message in enumerate(st.session_state.messages):
                 mime="text/csv",
                 key=f"download_{idx}",
             )
-        
+
 
 # Chat input
 if prompt := st.chat_input("Ask about movies, actors, or directors..."):
     # Add user message to history
-    st.session_state.messages.append({
-        "role": "user",
-        "content": prompt,
-    })
-    
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": prompt,
+        }
+    )
+
     # Display user message
     with st.chat_message("user"):
         st.markdown(prompt)
-    
+
     # Display assistant response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
@@ -221,7 +233,7 @@ if prompt := st.chat_input("Ask about movies, actors, or directors..."):
                 ],
                 model=st.session_state.selected_model,
             )
-            
+
             # Track statistics
             if "usage" in result and result["usage"]:
                 st.session_state.stats.add_query(
@@ -231,21 +243,21 @@ if prompt := st.chat_input("Ask about movies, actors, or directors..."):
                     question=prompt,
                     sql_executed=result["sql_query"] is not None,
                 )
-            
+
             # Display answer
             st.markdown(result["answer"])
-            
+
             # Display SQL if available
             if result["sql_query"]:
                 with st.expander("📝 View SQL Query"):
                     st.code(result["sql_query"], language="sql")
-            
+
             # Display results table
             if result["data"] is not None and not result["data"].empty:
                 # Show result count
                 st.caption(f"📊 {len(result['data'])} results")
                 st.dataframe(result["data"], use_container_width=True)
-                
+
                 # Export button
                 csv = result["data"].to_csv(index=False)
                 st.download_button(
@@ -254,11 +266,14 @@ if prompt := st.chat_input("Ask about movies, actors, or directors..."):
                     file_name="imdb_results.csv",
                     mime="text/csv",
                 )
-            
+
             # Add to conversation history
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": result["answer"],
-                "sql": result["sql_query"],
-                "data": result["data"],
-            })
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": result["answer"],
+                    "sql": result["sql_query"],
+                    "data": result["data"],
+                }
+            )
+# test

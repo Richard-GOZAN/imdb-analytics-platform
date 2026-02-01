@@ -15,7 +15,7 @@ from typing import Optional
 
 import pandas as pd
 import requests
-from google.api_core.exceptions import Conflict, NotFound
+from google.api_core.exceptions import NotFound
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 
@@ -75,8 +75,12 @@ def download_file(url: str, destination: Path, chunk_size: int = 8192) -> None:
 
                     # Log progress every 10MB
                     if downloaded_size % (10 * 1024 * 1024) < chunk_size:
-                        progress = (downloaded_size / total_size * 100) if total_size else 0
-                        logger.info(f"Progress: {progress:.1f}% ({downloaded_size // 1024 // 1024} MB)")
+                        progress = (
+                            (downloaded_size / total_size * 100) if total_size else 0
+                        )
+                        logger.info(
+                            f"Progress: {progress:.1f}% ({downloaded_size // 1024 // 1024} MB)"
+                        )
 
         logger.info(f"✓ Download complete: {destination}")
 
@@ -115,9 +119,9 @@ def convert_to_parquet(
             tsv_path,
             sep="\t",
             compression="gzip",
-            na_values=r"\N",  
+            na_values=r"\N",
             keep_default_na=True,
-            low_memory=False,  
+            low_memory=False,
         )
 
         logger.info(f"Read {len(df):,} rows with {len(df.columns)} columns")
@@ -126,8 +130,8 @@ def convert_to_parquet(
         df.to_parquet(
             parquet_path,
             compression=compression,
-            index=False,  
-            engine="pyarrow",  
+            index=False,
+            engine="pyarrow",
         )
 
         # Log file size reduction
@@ -311,9 +315,7 @@ def load_to_bigquery(
 
         # Get final table stats
         table = client.get_table(table_ref)
-        logger.info(
-            f"✓ Load complete: {table.num_rows:,} rows loaded into {table_ref}"
-        )
+        logger.info(f"✓ Load complete: {table.num_rows:,} rows loaded into {table_ref}")
 
     except Exception as e:
         logger.error(f"✗ Load failed: {e}")

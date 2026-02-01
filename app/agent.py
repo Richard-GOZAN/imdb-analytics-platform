@@ -10,7 +10,7 @@ This module implements an agent that:
 
 import json
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -55,12 +55,12 @@ TOOLS = [
 def create_system_prompt() -> str:
     """
     Create the system prompt with schema information.
-    
+
     Returns:
         System prompt string
     """
     schema_info = format_schema_for_llm()
-    
+
     system_prompt = f"""You are an expert SQL assistant for an IMDB movie database.
 
 Your role is to:
@@ -85,23 +85,23 @@ Your role is to:
 - Suggest related queries if relevant
 - If no results, explain why and suggest alternatives
 """
-    
+
     return system_prompt
 
 
 def run_agent(
     user_question: str,
     conversation_history: List[Dict[str, str]] = None,
-    model: str = None
+    model: str = None,
 ) -> Dict[str, Any]:
     """
     Run the agent to answer a user question.
-    
+
     Args:
         user_question: Natural language question from user
         conversation_history: Previous messages (for context)
         model: OpenAI model to use (defaults to OPENAI_MODEL env var)
-    
+
     Returns:
         Dictionary with:
         - answer: str (final answer)
@@ -113,26 +113,26 @@ def run_agent(
     # Use provided model or default
     if model is None:
         model = OPENAI_MODEL
-    
+
     # Initialize conversation
     if conversation_history is None:
         conversation_history = []
-    
+
     # Add system prompt
     messages = [{"role": "system", "content": create_system_prompt()}]
-    
+
     # Add conversation history
     messages.extend(conversation_history)
-    
+
     # Add user question
     messages.append({"role": "user", "content": user_question})
-    
+
     # Variables to track
     sql_executed = None
     query_result = None
     total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     max_iterations = 3  # Prevent infinite loops
-    
+
     # Agent loop
     for iteration in range(max_iterations):
         # Call OpenAI
@@ -142,34 +142,36 @@ def run_agent(
             tools=TOOLS,
             tool_choice="auto",
         )
-        
+
         # Track usage
         if response.usage:
             total_usage["prompt_tokens"] += response.usage.prompt_tokens
             total_usage["completion_tokens"] += response.usage.completion_tokens
             total_usage["total_tokens"] += response.usage.total_tokens
-        
+
         assistant_message = response.choices[0].message
-        
+
         # Check if tool was called
         if assistant_message.tool_calls:
             # Add assistant message to history
-            messages.append({
-                "role": "assistant",
-                "content": assistant_message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_message.content,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
                         }
-                    }
-                    for tc in assistant_message.tool_calls
-                ]
-            })
-            
+                        for tc in assistant_message.tool_calls
+                    ],
+                }
+            )
+
             # Execute each tool call
             for tool_call in assistant_message.tool_calls:
                 if tool_call.function.name == "execute_bigquery_sql":
@@ -177,42 +179,48 @@ def run_agent(
                     args = json.loads(tool_call.function.arguments)
                     sql_query = args["sql_query"]
                     sql_executed = sql_query
-                    
+
                     # Execute query
                     result = execute_sql(sql_query)
                     query_result = result
-                    
+
                     # Format result for LLM
                     if result["success"]:
                         tool_response = {
                             "success": True,
                             "rows_returned": result["rows_returned"],
-                            "data": result["data"].to_dict(orient="records") if result["data"] is not None else [],
+                            "data": result["data"].to_dict(orient="records")
+                            if result["data"] is not None
+                            else [],
                         }
                     else:
                         tool_response = {
                             "success": False,
                             "error": result["error"],
                         }
-                    
+
                     # Add tool response to messages
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": json.dumps(tool_response),
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": json.dumps(tool_response),
+                        }
+                    )
         else:
             # No tool call, model has final answer
             final_answer = assistant_message.content
-            
+
             return {
                 "answer": final_answer,
                 "sql_query": sql_executed,
-                "data": query_result["data"] if query_result and query_result["success"] else None,
+                "data": query_result["data"]
+                if query_result and query_result["success"]
+                else None,
                 "error": None,
                 "usage": total_usage,
             }
-    
+
     # Max iterations reached
     return {
         "answer": "I'm sorry, I couldn't complete the query. Please try rephrasing your question.",
@@ -222,21 +230,22 @@ def run_agent(
         "usage": total_usage,
     }
 
+
 # Test function
 if __name__ == "__main__":
     print("=== Testing Agent ===\n")
-    
+
     # Test question
     question = "What are the top 5 highest-rated movies?"
-    
+
     print(f"Question: {question}\n")
-    
+
     result = run_agent(question)
-    
+
     print(f"Answer: {result['answer']}\n")
-    
+
     if result["sql_query"]:
         print(f"SQL Executed:\n{result['sql_query']}\n")
-    
+
     if result["data"] is not None:
         print(f"Results:\n{result['data']}")
