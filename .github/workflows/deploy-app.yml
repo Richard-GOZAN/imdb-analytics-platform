@@ -27,7 +27,6 @@ jobs:
             docker ps
             echo "Deployment completed!"
       
-      - name: Verify deployment
+      - name: print message
         run: |
           echo "App deployed successfully!"
-          echo "Access at: http://${{ secrets.VM_HOST }}:8501"
