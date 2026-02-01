@@ -208,3 +208,9 @@ __marimo__/
 
 #  Local credentials file
 credentials.json
+
+# Data files
+data/
+
+# Tesst
+tests/
