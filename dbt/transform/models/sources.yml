@@ -1,0 +1,270 @@
+# ============================================================================
+# dbt Sources Configuration
+# ============================================================================
+# This file defines external data sources (tables in BigQuery) that dbt
+# models will reference. Sources represent the bronze layer (raw data).
+# ============================================================================
+
+version: 2
+
+sources:
+  # ==========================================================================
+  # Bronze Layer - Raw IMDB Data
+  # ==========================================================================
+  # Data loaded directly from IMDB datasets by the ingestion pipeline
+  # Location: imdb-analytics.bronze.*
+  # Refresh: Daily (via ingestion pipeline)
+  
+  - name: bronze
+    description: |
+      Raw IMDB datasets loaded by the ingestion pipeline.
+      
+      This is the bronze layer in our medallion architecture:
+      - No transformations applied
+      - Original IMDB schema preserved
+      - Contains NULL values as '\N' strings
+      - Updated daily from https://datasets.imdbws.com/
+      
+      For more information about IMDB datasets, see:
+      https://developer.imdb.com/non-commercial-datasets/
+    
+    database: imdb-analytics
+    schema: bronze
+    
+    tables:
+      # ======================================================================
+      # Title Information
+      # ======================================================================
+      
+      - name: title_basics
+        description: |
+          Core information about titles (movies, TV shows, episodes, etc).
+          
+          Contains basic metadata like title name, release year, runtime,
+          and genres. This is the primary table for title information.
+        
+        columns:
+          - name: tconst
+            description: |
+              Alphanumeric unique identifier of the title (e.g., tt0111161).
+              Primary key. Format: tt + 7 digits.
+            tests:
+              - unique
+              - not_null
+          
+          - name: titleType
+            description: |
+              Type/format of the title:
+              - movie: Feature film
+              - short: Short film  
+              - tvSeries: TV series
+              - tvEpisode: TV episode
+              - tvMiniSeries: Mini-series
+              - video: Direct-to-video
+            tests:
+              - not_null
+          
+          - name: primaryTitle
+            description: |
+              The most popular title / the title used by filmmakers on
+              promotional materials at the point of release.
+          
+          - name: originalTitle
+            description: Original title in the original language
+          
+          - name: isAdult
+            description: |
+              Adult content flag:
+              - 0: Non-adult title
+              - 1: Adult title
+          
+          - name: startYear
+            description: |
+              Release year of the title (YYYY format).
+              For TV Series, this is the series start year.
+              NULL represented as '\N' string.
+          
+          - name: endYear
+            description: |
+              TV Series end year. '\N' for all other title types.
+              NULL represented as '\N' string.
+          
+          - name: runtimeMinutes
+            description: |
+              Primary runtime of the title, in minutes.
+              NULL represented as '\N' string.
+          
+          - name: genres
+            description: |
+              Up to three genres associated with the title.
+              Format: comma-separated string (e.g., "Drama,Crime,Thriller")
+      
+      # ======================================================================
+      
+      - name: title_ratings
+        description: |
+          User ratings and vote counts for titles.
+          
+          Contains IMDb's weighted average rating and the number of votes.
+          Only includes titles with sufficient votes.
+        
+        columns:
+          - name: tconst
+            description: Title identifier (foreign key to title_basics)
+            tests:
+              - not_null
+              - relationships:
+                  field: tconst
+                  to: source('bronze', 'title_basics')
+          
+          - name: averageRating
+            description: |
+              Weighted average of all individual user ratings (0-10 scale).
+              IMDb uses a weighted algorithm to prevent rating manipulation.
+            tests:
+              - not_null
+          
+          - name: numVotes
+            description: Number of votes the title has received
+            tests:
+              - not_null
+      
+      # ======================================================================
+      # People Information
+      # ======================================================================
+      
+      - name: name_basics
+        description: |
+          Information about people in the entertainment industry.
+          
+          Includes actors, directors, writers, producers, etc.
+          Contains biographical information and known works.
+        
+        columns:
+          - name: nconst
+            description: |
+              Alphanumeric unique identifier of the person (e.g., nm0000123).
+              Primary key. Format: nm + 7 digits.
+            tests:
+              - unique
+              - not_null
+          
+          - name: primaryName
+            description: Name by which the person is most often credited
+            tests:
+              - not_null
+          
+          - name: birthYear
+            description: |
+              Birth year in YYYY format.
+              '\N' for missing values.
+          
+          - name: deathYear
+            description: |
+              Death year in YYYY format if applicable.
+              '\N' if person is alive or date unknown.
+          
+          - name: primaryProfession
+            description: |
+              Top-3 professions of the person.
+              Format: comma-separated string (e.g., "actor,producer,writer")
+          
+          - name: knownForTitles
+            description: |
+              Titles the person is best known for.
+              Format: comma-separated tconst values (e.g., "tt0111161,tt0468569")
+      
+      # ======================================================================
+      # Crew Information
+      # ======================================================================
+      
+      - name: title_crew
+        description: |
+          Director and writer assignments for titles.
+          
+          Links titles to their directors and writers.
+          Multiple people can be assigned to each role.
+        
+        columns:
+          - name: tconst
+            description: Title identifier
+            tests:
+              - not_null
+          
+          - name: directors
+            description: |
+              Director(s) of the title.
+              Format: comma-separated nconst values (e.g., "nm0000123,nm0000456")
+              '\N' if no directors listed.
+          
+          - name: writers
+            description: |
+              Writer(s) of the title.
+              Format: comma-separated nconst values
+              '\N' if no writers listed.
+      
+      # ======================================================================
+      
+      - name: title_principals
+        description: |
+          Principal cast and crew for titles.
+          
+          Contains the most important people associated with each title,
+          including their role and character names (for actors).
+        
+        columns:
+          - name: tconst
+            description: Title identifier
+            tests:
+              - not_null
+          
+          - name: ordering
+            description: |
+              Display order number (1 = top billing).
+              Uniquely identifies rows for a given title.
+            tests:
+              - not_null
+          
+          - name: nconst
+            description: Person identifier
+            tests:
+              - not_null
+          
+          - name: category
+            description: |
+              Category of job:
+              - actor/actress: Acting role
+              - director: Directed the title
+              - writer: Wrote the screenplay
+              - producer: Produced the title
+              - composer: Composed music
+              - cinematographer: Director of photography
+              - editor: Edited the title
+              - production_designer: Production design
+              And others...
+          
+          - name: job
+            description: |
+              Specific job title if applicable.
+              E.g., "director", "screenplay", "novel"
+              Can be NULL.
+          
+          - name: characters
+            description: |
+              Name of the character played (for actors).
+              Format: JSON array string (e.g., '["Rick Blaine"]')
+              NULL for non-acting roles.
+      
+      # ======================================================================
+      # Additional Tables (Not Used in Initial Models)
+      # ======================================================================
+      
+      - name: title_akas
+        description: |
+          Alternative titles in different languages/regions.
+          Note: Not used in initial staging models.
+      
+      - name: title_episode
+        description: |
+          TV episode information linked to parent series.
+          Note: Not used in initial staging models (movies only).
