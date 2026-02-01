@@ -1,0 +1,61 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # 2. Set up Python environment
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 3. Install uv
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # 4. Install Python dependencies exactly as locked in uv.lock
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # 5. Automatically format code with Ruff
+      - name: Format code with Ruff
+        run: uv run ruff format .
+
+      # 6. Run Ruff linter to check code quality
+      - name: Run linting
+        run: uv run ruff check .
+      
+      # 7. Commit any changes made by Ruff and push back to the repo
+      - name: Commit changes if any
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          if [[ `git status --porcelain` ]]; then
+            git add .
+            git commit -m "Format code with Ruff"
+            git push
+          else
+            echo "No changes to commit"
+      
+      # 8. Summary message
+      - name: Summary
+        run: echo "Ruff linting and formatting completed!"
