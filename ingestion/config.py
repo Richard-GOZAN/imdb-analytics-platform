@@ -106,7 +106,7 @@ class Config:
         if missing_vars:
             raise ValueError(
                 f"Missing required environment variables: {', '.join(missing_vars)}\n"
-                f"Please copy .env.example to .env and fill in your values."
+                f"Please copy .env.template to .env and fill in your values."
             )
 
         # Check credentials file exists

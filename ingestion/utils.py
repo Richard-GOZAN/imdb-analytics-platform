@@ -228,15 +228,17 @@ def get_bigquery_client() -> bigquery.Client:
     return bigquery.Client(project=Config.project_id, credentials=credentials)
 
 
-def ensure_dataset_exists(dataset_id: str, location: str = "EU") -> None:
+def ensure_dataset_exists(dataset_id: str, location: Optional[str] = None):
+    if location is None:
+        location = Config.region
     """
     Ensure a BigQuery dataset exists, creating it if necessary.
 
     This function is idempotent - calling it multiple times is safe.
 
     Args:
-        dataset_id: BigQuery dataset ID (e.g., "bronze_id2608")
-        location: Dataset location (e.g., "EU", "US")
+        dataset_id: BigQuery dataset ID
+        location: Dataset location 
 
     Raises:
         google.cloud.exceptions.GoogleCloudError: If creation fails
